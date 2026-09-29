@@ -37,6 +37,7 @@ jobs:
         id: meta
         run: |
           REPO_NAME=${GITHUB_REPOSITORY##*/}
+          REPO_NAME=${REPO_NAME,,}
           ENV_NAME=$(basename envs/Dockerfile.bioinformatics)
           ENV_NAME=${ENV_NAME#Dockerfile.}
           echo "IMAGE=${{ vars.DOCKERHUB_USERNAME }}/${REPO_NAME}-${ENV_NAME}" >> "$GITHUB_OUTPUT"

@@ -22,7 +22,7 @@ Converts a VCF into a PLINK1 binary fileset (`.bed`/`.bim`/`.fam`), applying sta
 
 - Single task (`Plink2MakeBed`) runs `plink2 --vcf ... --maf ~{MinAF} --hwe ~{HWEPvalThreshold} --make-bed` inside the `bioinformatics` Docker image.
 - `MinAF` (default `0.01`) drops variants below that minor allele frequency; `HWEPvalThreshold` (default `1e-6`) drops variants failing the Hardy-Weinberg exact test at that p-value.
-- Docker image is built from **this repo** (`envs/Dockerfile.bioinformatics`, plink2 + bcftools/tabix) and published to Docker Hub as `<DOCKERHUB_USERNAME>/<repo-name>-bioinformatics`. The WDL selects the tag via the `ImageTag` input (defaults to `latest`; pass a 7-char commit SHA to pin a specific build).
+- Docker image is built from **this repo** (`envs/Dockerfile.bioinformatics`, plink2 + bcftools/tabix) and published to Docker Hub as `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` (CI lowercases the repo name — `AoU_meQTL` — since Docker Hub image names must be lowercase). The WDL selects the tag via the `ImageTag` input (defaults to `latest`; pass a 7-char commit SHA to pin a specific build).
 
 ## Common Commands
 
@@ -40,10 +40,10 @@ miniwdl check workflows/vcf_to_plink.wdl
 
 ## CI
 
-`.github/workflows/bioinformatics-docker-image.yml` builds and pushes the bioinformatics image to Docker Hub on push/PR to `main`/`develop`, currently only when `envs/Dockerfile.bioinformatics` changes — add a `scripts/**` path filter once a task in this env starts using a script from `scripts/`. Images are named `<DOCKERHUB_USERNAME>/<repo-name>-bioinformatics` and tagged `latest` + the 7-char commit SHA. Auth uses the `DOCKERHUB_USERNAME` repo **variable** and the `DOCKERHUB_TOKEN` **secret**.
+`.github/workflows/bioinformatics-docker-image.yml` builds and pushes the bioinformatics image to Docker Hub on push/PR to `main`/`develop`, currently only when `envs/Dockerfile.bioinformatics` changes — add a `scripts/**` path filter once a task in this env starts using a script from `scripts/`. Images are named `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` and tagged `latest` + the 7-char commit SHA. Auth uses the `DOCKERHUB_USERNAME` repo **variable** and the `DOCKERHUB_TOKEN` **secret**.
 
 ## Gotchas
 
 - `plink2` has no Debian package, so the Dockerfile pulls the prebuilt binary from cog-genomics' `_latest` S3 alias. Pin `PLINK2_VERSION` (build arg) to a dated build instead for a reproducible image.
 - `--maf`/`--hwe` in plink2 apply across the whole sample by default. If case/control-aware HWE filtering is ever needed (only filtering on controls), that requires `--hwe ... midp` semantics or splitting by phenotype first — not currently implemented.
-- The Docker Hub image name (`ayenkin1871/aou-mqtl-analysis-bioinformatics` in `vcf_to_plink.wdl`) is hardcoded to match this repo's expected name/owner; update it if the repo is renamed or forked under a different Docker Hub account.
+- The repo name (`AoU_meQTL`) has uppercase letters, but Docker Hub image names must be lowercase — the CI workflow lowercases `REPO_NAME` before building the tag. The hardcoded Docker image string in `vcf_to_plink.wdl` (`ayenkin1871/aou_meqtl-bioinformatics`) must be kept in sync with whatever that lowercased name resolves to; update both if the repo is renamed or forked under a different Docker Hub account.

@@ -53,7 +53,7 @@ task Plink2MakeBed {
     >>>
 
     runtime {
-        docker: "ayenkin1871/aou-mqtl-analysis-bioinformatics:" + ImageTag
+        docker: "ayenkin1871/aou_meqtl-bioinformatics:" + ImageTag
         memory: MemoryGB + " GB"
         cpu: 4
         disks: "local-disk " + select_first([DiskGB, auto_disk_size]) + " SSD"
