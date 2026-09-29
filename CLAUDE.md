@@ -18,9 +18,9 @@ All workflows should be registered in .dockstore.yml.
 
 ### 1. VCFToPlink (`workflows/vcf_to_plink.wdl`)
 
-Converts a VCF into a PLINK1 binary fileset (`.bed`/`.bim`/`.fam`), applying standard QC filters.
+Converts a VCF into a PLINK2 fileset (`.pgen`/`.pvar`/`.psam`), applying standard QC filters.
 
-- Single task (`Plink2MakeBed`) runs `plink2 --vcf ... --maf ~{MinAF} --hwe ~{HWEPvalThreshold} --make-bed` inside the `bioinformatics` Docker image.
+- Single task (`Plink2MakePgen`) runs `plink2 --vcf ... --maf ~{MinAF} --hwe ~{HWEPvalThreshold} --make-pgen` inside the `bioinformatics` Docker image.
 - `MinAF` (default `0.01`) drops variants below that minor allele frequency; `HWEPvalThreshold` (default `1e-6`) drops variants failing the Hardy-Weinberg exact test at that p-value.
 - Docker image is built from **this repo** (`envs/Dockerfile.bioinformatics`, plink2 + bcftools/tabix) and published to Docker Hub as `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` (CI lowercases the repo name — `AoU_meQTL` — since Docker Hub image names must be lowercase). The WDL selects the tag via the `ImageTag` input (defaults to `latest`; pass a 7-char commit SHA to pin a specific build).
 

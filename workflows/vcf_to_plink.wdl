@@ -9,7 +9,7 @@ workflow VCFToPlink {
         String ImageTag = "latest"
     }
 
-    call Plink2MakeBed {
+    call Plink2MakePgen {
         input:
             VCF = VCF,
             MinAF = MinAF,
@@ -19,14 +19,14 @@ workflow VCFToPlink {
     }
 
     output {
-        File Bed = Plink2MakeBed.Bed
-        File Bim = Plink2MakeBed.Bim
-        File Fam = Plink2MakeBed.Fam
-        File Log = Plink2MakeBed.Log
+        File Pgen = Plink2MakePgen.Pgen
+        File Pvar = Plink2MakePgen.Pvar
+        File Psam = Plink2MakePgen.Psam
+        File Log = Plink2MakePgen.Log
     }
 }
 
-task Plink2MakeBed {
+task Plink2MakePgen {
     input {
         File VCF
         Float MinAF = 0.01
@@ -48,7 +48,7 @@ task Plink2MakeBed {
             --allow-extra-chr \
             --maf ~{MinAF} \
             --hwe ~{HWEPvalThreshold} \
-            --make-bed \
+            --make-pgen \
             --out ~{OutputPrefix}
     >>>
 
@@ -62,9 +62,9 @@ task Plink2MakeBed {
     }
 
     output {
-        File Bed = OutputPrefix + ".bed"
-        File Bim = OutputPrefix + ".bim"
-        File Fam = OutputPrefix + ".fam"
+        File Pgen = OutputPrefix + ".pgen"
+        File Pvar = OutputPrefix + ".pvar"
+        File Psam = OutputPrefix + ".psam"
         File Log = OutputPrefix + ".log"
     }
 }
