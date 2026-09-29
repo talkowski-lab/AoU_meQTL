@@ -1,0 +1,10 @@
+version: 1.2
+workflows:
+  - subclass: WDL
+    name: VCFToPlink
+    primaryDescriptorPath: /workflows/vcf_to_plink.wdl
+    filters:
+      branches:
+        - main
+      tags:
+        - /.*/

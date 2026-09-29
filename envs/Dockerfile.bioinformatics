@@ -1,0 +1,19 @@
+## General-purpose bioinformatics environment for VCF/plink tasks (e.g.
+## VCFToPlink) rather than a bespoke script-driven pipeline.
+FROM debian:bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        bcftools tabix unzip curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+## plink2 has no Debian package, so pull the prebuilt static binary from
+## cog-genomics' own hosting. The "_latest" alias always points at the
+## newest build; pin PLINK2_VERSION to a dated build (e.g. 20240818) instead
+## for a reproducible image.
+ARG PLINK2_VERSION=latest
+RUN curl -sSL "https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_${PLINK2_VERSION}.zip" -o /tmp/plink2.zip \
+    && unzip -q /tmp/plink2.zip plink2 -d /usr/local/bin \
+    && chmod +x /usr/local/bin/plink2 \
+    && rm /tmp/plink2.zip
+
+CMD ["bash"]
