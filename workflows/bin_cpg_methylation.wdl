@@ -61,11 +61,17 @@ task IntersectWithIntervals {
 
         INTERVAL_BED="~{IntervalBed}"
         if [[ -z "$INTERVAL_BED" ]]; then
-            # IntervalString is a 1-based inclusive region (samtools/tabix style,
-            # e.g. chr1:1000000-2000000) -- convert to 0-based BED coordinates.
-            printf '%s\n' "~{IntervalString}" \
-                | awk -F'[:-]' 'BEGIN{OFS="\t"} {print $1, $2 - 1, $3}' \
-                > interval_from_string.bed
+            INTERVAL_STRING="~{IntervalString}"
+            if [[ "$INTERVAL_STRING" == *:* ]]; then
+                # A 1-based inclusive region (samtools/tabix style, e.g.
+                # chr1:1000000-2000000) -- convert to 0-based BED coordinates.
+                printf '%s\n' "$INTERVAL_STRING" \
+                    | awk -F'[:-]' 'BEGIN{OFS="\t"} {print $1, $2 - 1, $3}' \
+                    > interval_from_string.bed
+            else
+                # A bare chromosome name (e.g. chr18) -- the whole chromosome.
+                printf '%s\t0\t2147483647\n' "$INTERVAL_STRING" > interval_from_string.bed
+            fi
             INTERVAL_BED="interval_from_string.bed"
         fi
 
