@@ -20,4 +20,7 @@ _LAST/
 .env
 
 # Claude Code worktree artifacts
-.claude/worktrees/
+.claude
+
+# Large test data
+ref/

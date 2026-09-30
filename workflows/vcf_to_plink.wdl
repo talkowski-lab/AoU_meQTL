@@ -3,6 +3,7 @@ version 1.0
 workflow VCFToPlink {
     input {
         File VCF
+        String InputFormat = "vcf"
         Float MinAF = 0.01
         Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
@@ -12,6 +13,7 @@ workflow VCFToPlink {
     call Plink2MakePgen {
         input:
             VCF = VCF,
+            InputFormat = InputFormat,
             MinAF = MinAF,
             HWEPvalThreshold = HWEPvalThreshold,
             OutputPrefix = OutputPrefix,
@@ -29,6 +31,7 @@ workflow VCFToPlink {
 task Plink2MakePgen {
     input {
         File VCF
+        String InputFormat = "vcf"
         Float MinAF = 0.01
         Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
@@ -42,8 +45,16 @@ task Plink2MakePgen {
     command <<<
         set -euo pipefail
 
+        case "~{InputFormat}" in
+            vcf|bcf) ;;
+            *)
+                echo "InputFormat must be 'vcf' or 'bcf', got '~{InputFormat}'" >&2
+                exit 1
+                ;;
+        esac
+
         plink2 \
-            --vcf ~{VCF} \
+            --~{InputFormat} ~{VCF} \
             --double-id \
             --allow-extra-chr \
             --maf ~{MinAF} \
