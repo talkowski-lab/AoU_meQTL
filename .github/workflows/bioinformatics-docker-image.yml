@@ -4,12 +4,14 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - 'scripts/**'                        # any script baked into the image
       - 'envs/Dockerfile.bioinformatics'    # the env's own Dockerfile
     branches:
       - main
       - develop
   pull_request:
     paths:
+      - 'scripts/**'
       - 'envs/Dockerfile.bioinformatics'
     branches:
       - main

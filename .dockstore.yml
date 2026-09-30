@@ -8,3 +8,12 @@ workflows:
         - main
       tags:
         - /.*/
+
+  - subclass: WDL
+    name: BinCpGMethylation
+    primaryDescriptorPath: /workflows/bin_cpg_methylation.wdl
+    filters:
+      branches:
+        - main
+      tags:
+        - /.*/

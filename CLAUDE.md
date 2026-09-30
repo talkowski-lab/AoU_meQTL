@@ -22,7 +22,18 @@ Converts a VCF into a PLINK2 fileset (`.pgen`/`.pvar`/`.psam`), applying standar
 
 - Single task (`Plink2MakePgen`) runs `plink2 --vcf ... --maf ~{MinAF} --hwe ~{HWEPvalThreshold} --make-pgen` inside the `bioinformatics` Docker image.
 - `MinAF` (default `0.01`) drops variants below that minor allele frequency; `HWEPvalThreshold` (default `1e-6`) drops variants failing the Hardy-Weinberg exact test at that p-value.
-- Docker image is built from **this repo** (`envs/Dockerfile.bioinformatics`, plink2 + bcftools/tabix) and published to Docker Hub as `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` (CI lowercases the repo name — `AoU_meQTL` — since Docker Hub image names must be lowercase). The WDL selects the tag via the `ImageTag` input (defaults to `latest`; pass a 7-char commit SHA to pin a specific build).
+- Docker image is built from **this repo** (`envs/Dockerfile.bioinformatics`) and published to Docker Hub as `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` (CI lowercases the repo name — `AoU_meQTL` — since Docker Hub image names must be lowercase). The WDL selects the tag via the `ImageTag` input (defaults to `latest`; pass a 7-char commit SHA to pin a specific build).
+
+### 2. BinCpGMethylation (`workflows/bin_cpg_methylation.wdl` + `scripts/bin_cpg_methylation.py`)
+
+Bins per-CpG methylation calls (a pb-CpG-tools bed) into fixed-size genomic windows and summarizes each window.
+
+- Optional first task (`IntersectWithIntervals`): if `IntervalBed` or `IntervalString` is given, restricts `CpGBed` to those regions via `bedtools intersect -u` before binning (`IntervalBed` takes precedence if both are set). `IntervalString` is a 1-based inclusive region, e.g. `chr1:1000000-2000000` (samtools/tabix style), converted to 0-based BED internally.
+- `BinCpGs` runs `bedtools makewindows -g ~{ChromSizes} -w ~{WindowSize}` to tile the genome, then `bedtools intersect -wa -wb` against the (possibly filtered) CpG bed, piping pairs into `scripts/bin_cpg_methylation.py` to aggregate per window: `num_cpgs`, `total_coverage`, `weighted_mean_methylation` (coverage-weighted), `unweighted_mean_methylation` (simple mean across CpGs). Windows with zero overlapping CpGs are dropped rather than emitted with NAs.
+- `MethCol`/`CovCol` (defaults `4`/`6`) are 1-based column indices into `CpGBed`, assuming the standard pb-CpG-tools combined pileup bed (`chrom, start, end, modification_probability, haplotype, coverage`). Adjust these if the input bed has a different layout (e.g. "count" mode, which adds modified/unmodified count columns).
+- `ChromSizes` is a standard 2-column `chrom<TAB>size` file (as produced by `cut -f1,2 ref.fa.fai` or UCSC `chrom.sizes`).
+- Output bed has a `#`-prefixed header and is sorted by `chrom,start`.
+- Docker image: same `envs/Dockerfile.bioinformatics` as VCFToPlink (adds `bedtools`/`python3`; the script is baked in via `COPY scripts/ /scripts/`).
 
 ## Common Commands
 
@@ -40,7 +51,7 @@ miniwdl check workflows/vcf_to_plink.wdl
 
 ## CI
 
-`.github/workflows/bioinformatics-docker-image.yml` builds and pushes the bioinformatics image to Docker Hub on push/PR to `main`/`develop`, currently only when `envs/Dockerfile.bioinformatics` changes — add a `scripts/**` path filter once a task in this env starts using a script from `scripts/`. Images are named `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` and tagged `latest` + the 7-char commit SHA. Auth uses the `DOCKERHUB_USERNAME` repo **variable** and the `DOCKERHUB_TOKEN` **secret**.
+`.github/workflows/bioinformatics-docker-image.yml` builds and pushes the bioinformatics image to Docker Hub on push/PR to `main`/`develop`, when `scripts/**` or `envs/Dockerfile.bioinformatics` changes. Images are named `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` and tagged `latest` + the 7-char commit SHA. Auth uses the `DOCKERHUB_USERNAME` repo **variable** and the `DOCKERHUB_TOKEN` **secret**.
 
 ## Gotchas
 
