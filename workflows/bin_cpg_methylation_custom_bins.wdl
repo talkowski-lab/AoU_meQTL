@@ -2,11 +2,10 @@ version 1.0
 
 import "utils/cpg_methylation_tasks.wdl" as CpGTasks
 
-workflow BinCpGMethylation {
+workflow BinCpGMethylationCustomBins {
     input {
         File CpGBed
-        File ChromSizes
-        Int WindowSize
+        File BinsBed
         File? IntervalBed
         String? IntervalString
         String OutputPrefix = "cpg_bins"
@@ -29,17 +28,10 @@ workflow BinCpGMethylation {
 
     File CpGBedForBinning = select_first([IntersectWithIntervals.FilteredCpGBed, CpGBed])
 
-    call CpGTasks.MakeWindows as MakeWindows {
-        input:
-            ChromSizes = ChromSizes,
-            WindowSize = WindowSize,
-            ImageTag = ImageTag
-    }
-
     call CpGTasks.BinCpGs as BinCpGs {
         input:
             CpGBed = CpGBedForBinning,
-            BinsBed = MakeWindows.WindowsBed,
+            BinsBed = BinsBed,
             OutputPrefix = OutputPrefix,
             MethCol = MethCol,
             CovCol = CovCol,

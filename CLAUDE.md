@@ -21,19 +21,21 @@ All workflows should be registered in .dockstore.yml.
 Converts a VCF into a PLINK2 fileset (`.pgen`/`.pvar`/`.psam`), applying standard QC filters.
 
 - Single task (`Plink2MakePgen`) runs `plink2 --vcf ... --maf ~{MinAF} --hwe ~{HWEPvalThreshold} --make-pgen` inside the `bioinformatics` Docker image.
-- `MinAF` (default `0.01`) drops variants below that minor allele frequency; `HWEPvalThreshold` (default `1e-6`) drops variants failing the Hardy-Weinberg exact test at that p-value.
+- `MinAF` (default `0.01`) drops variants below that minor allele frequency; `HWEPvalThreshold` (default `0.000001`) drops variants failing the Hardy-Weinberg exact test at that p-value. (Written as a plain decimal rather than `1e-6`: Dockstore's WDL parser rejects scientific-notation float literals.)
 - Docker image is built from **this repo** (`envs/Dockerfile.bioinformatics`) and published to Docker Hub as `<DOCKERHUB_USERNAME>/aou_meqtl-bioinformatics` (CI lowercases the repo name — `AoU_meQTL` — since Docker Hub image names must be lowercase). The WDL selects the tag via the `ImageTag` input (defaults to `latest`; pass a 7-char commit SHA to pin a specific build).
 
-### 2. BinCpGMethylation (`workflows/bin_cpg_methylation.wdl` + `scripts/bin_cpg_methylation.py`)
+### 2. BinCpGMethylation / BinCpGMethylationCustomBins (`workflows/bin_cpg_methylation*.wdl` + `workflows/utils/cpg_methylation_tasks.wdl`)
 
-Bins per-CpG methylation calls (a pb-CpG-tools bed) into fixed-size genomic windows and summarizes each window.
+Bins per-CpG methylation calls (a pb-CpG-tools bed) into genomic bins and summarizes each bin. Both workflows share the same tasks from `utils/cpg_methylation_tasks.wdl`; they differ only in how the bins bed is produced:
 
-- Optional first task (`IntersectWithIntervals`): if `IntervalBed` or `IntervalString` is given, restricts `CpGBed` to those regions via `bedtools intersect -u` before binning (`IntervalBed` takes precedence if both are set). `IntervalString` accepts either a 1-based inclusive region, e.g. `chr1:1000000-2000000` (samtools/tabix style, converted to 0-based BED internally), or a bare chromosome name, e.g. `chr18` (matched by presence/absence of `:`).
-- `BinCpGs` runs `bedtools makewindows -g ~{ChromSizes} -w ~{WindowSize}` to tile the genome, then `bedtools intersect -wa -wb` against the (possibly filtered) CpG bed, piping pairs into `scripts/bin_cpg_methylation.py` to aggregate per window: `num_cpgs`, `total_coverage`, `weighted_mean_methylation` (coverage-weighted), `unweighted_mean_methylation` (simple mean across CpGs). Windows with zero overlapping CpGs are dropped rather than emitted with NAs.
+- **BinCpGMethylation** (`workflows/bin_cpg_methylation.wdl`) takes `ChromSizes` + `WindowSize` and calls `MakeWindows` (`bedtools makewindows -g ~{ChromSizes} -w ~{WindowSize}`) to build fixed-size bins covering the whole genome.
+- **BinCpGMethylationCustomBins** (`workflows/bin_cpg_methylation_custom_bins.wdl`) instead takes a user-supplied `BinsBed` directly (e.g. gene bodies, CpG islands, arbitrary regions) and skips `MakeWindows`.
+- Both then call `BinCpGs`, which aggregates per bin using `bedtools map` (no custom script): it appends an integer-coverage column and a `methylation * coverage` column to `CpGBed` via `awk`, then runs `bedtools map -a ~{BinsBed} -b <annotated CpGBed> -c <meth>,<meth>,<cov>,<weight> -o count,mean,sum,sum` to get `num_cpgs`, `unweighted_mean_methylation` (bedtools' `mean` op), `total_coverage`, and a weighted-sum column in one native pass; a final `awk` divides the weighted sum by `total_coverage` to get `weighted_mean_methylation` and drops bins where `bedtools map`'s `count` column is `0` (empty bins are dropped rather than emitted with NAs — note `count` is literally `0` for empty bins, not `.` like the other columns).
+- Both workflows have an optional first task (`IntersectWithIntervals`): if `IntervalBed` or `IntervalString` is given, restricts `CpGBed` to those regions via `bedtools intersect -u` before binning (`IntervalBed` takes precedence if both are set). `IntervalString` accepts either a 1-based inclusive region, e.g. `chr1:1000000-2000000` (samtools/tabix style, converted to 0-based BED internally), or a bare chromosome name, e.g. `chr18` (matched by presence/absence of `:`).
 - `MethCol`/`CovCol` (defaults `4`/`6`) are 1-based column indices into `CpGBed`, assuming the standard pb-CpG-tools combined pileup bed (`chrom, start, end, modification_probability, haplotype, coverage`). Adjust these if the input bed has a different layout (e.g. "count" mode, which adds modified/unmodified count columns).
-- `ChromSizes` is a standard 2-column `chrom<TAB>size` file (as produced by `cut -f1,2 ref.fa.fai` or UCSC `chrom.sizes`).
+- `ChromSizes` (BinCpGMethylation only) is a standard 2-column `chrom<TAB>size` file (as produced by `cut -f1,2 ref.fa.fai` or UCSC `chrom.sizes`).
 - Output bed has a `#`-prefixed header and is sorted by `chrom,start`.
-- Docker image: same `envs/Dockerfile.bioinformatics` as VCFToPlink (adds `bedtools`/`python3`; the script is baked in via `COPY scripts/ /scripts/`).
+- Docker image: same `envs/Dockerfile.bioinformatics` as VCFToPlink (just `bedtools`/`awk` — no `python3`, since nothing in the image needs it anymore).
 
 ## Common Commands
 

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# WDL execution artifacts (miniwdl, Cromwell)
+cromwell-executions/
+cromwell-workflow-logs/
+_LAST/
+*.wdl.log
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Local env / secrets
+.env
+
+# Claude Code worktree artifacts
+.claude/worktrees/

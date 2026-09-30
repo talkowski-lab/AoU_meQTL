@@ -4,7 +4,7 @@ workflow VCFToPlink {
     input {
         File VCF
         Float MinAF = 0.01
-        Float HWEPvalThreshold = 1e-6
+        Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
         String ImageTag = "latest"
     }
@@ -30,7 +30,7 @@ task Plink2MakePgen {
     input {
         File VCF
         Float MinAF = 0.01
-        Float HWEPvalThreshold = 1e-6
+        Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
         String ImageTag = "latest"
         Int MemoryGB = 8

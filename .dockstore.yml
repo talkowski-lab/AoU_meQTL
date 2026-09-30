@@ -17,3 +17,12 @@ workflows:
         - main
       tags:
         - /.*/
+
+  - subclass: WDL
+    name: BinCpGMethylationCustomBins
+    primaryDescriptorPath: /workflows/bin_cpg_methylation_custom_bins.wdl
+    filters:
+      branches:
+        - main
+      tags:
+        - /.*/

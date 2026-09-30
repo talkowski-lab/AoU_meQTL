@@ -3,7 +3,7 @@
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        bcftools tabix bedtools unzip curl ca-certificates python3 \
+        bcftools tabix bedtools unzip curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 ## plink2 has no Debian package, so pull the prebuilt static binary from
