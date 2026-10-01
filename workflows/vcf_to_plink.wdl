@@ -8,6 +8,7 @@ workflow VCFToPlink {
         Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
         String ImageTag = "latest"
+        String ExtraPlink2Args = ""
     }
 
     call Plink2MakePgen {
@@ -17,7 +18,8 @@ workflow VCFToPlink {
             MinAF = MinAF,
             HWEPvalThreshold = HWEPvalThreshold,
             OutputPrefix = OutputPrefix,
-            ImageTag = ImageTag
+            ImageTag = ImageTag,
+            ExtraPlink2Args = ExtraPlink2Args
     }
 
     output {
@@ -36,6 +38,7 @@ task Plink2MakePgen {
         Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
         String ImageTag = "latest"
+        String ExtraPlink2Args = ""
         Int MemoryGB = 8
         Int? DiskGB
     }
@@ -59,6 +62,7 @@ task Plink2MakePgen {
             --allow-extra-chr \
             --maf ~{MinAF} \
             --hwe ~{HWEPvalThreshold} \
+            ~{ExtraPlink2Args} \
             --make-pgen \
             --out ~{OutputPrefix}
     >>>
