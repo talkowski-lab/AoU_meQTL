@@ -19,7 +19,10 @@ workflow BinCpGMethylation {
     Boolean CpGBedIsGz = basename(CpGBed) != sub(basename(CpGBed), "\\.gz$", "")
 
     String FilteredSuffix = if RestrictToIntervals then "_filtered" else ""
-    String BinnedOutputPrefix = "~{OutputPrefix}_binned_methyl_~{WindowSize}bp~{FilteredSuffix}"
+    # Abbreviate round window sizes for naming (20000 -> 20k, 1000000 -> 1m);
+    # anything not a whole multiple of 1000 falls back to the raw bp count.
+    String WindowSizeLabel = if (WindowSize % 1000000 == 0) then "~{WindowSize / 1000000}m" else if (WindowSize % 1000 == 0) then "~{WindowSize / 1000}k" else "~{WindowSize}bp"
+    String BinnedOutputPrefix = "~{OutputPrefix}_binned_methyl_~{WindowSizeLabel}~{FilteredSuffix}"
 
     if (CpGBedIsGz) {
         call CpGTasks.Unzip as UnzipCpGBed {

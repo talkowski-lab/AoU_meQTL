@@ -26,3 +26,12 @@ workflows:
         - main
       tags:
         - /.*/
+
+  - subclass: WDL
+    name: BuildBedMatrix
+    primaryDescriptorPath: /workflows/build_bed_matrix.wdl
+    filters:
+      branches:
+        - main
+      tags:
+        - /.*/
