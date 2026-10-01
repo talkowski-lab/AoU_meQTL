@@ -5,7 +5,6 @@ workflow VCFToPlink {
         File VCF
         String InputFormat = "vcf"
         Float MinAF = 0.01
-        Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
         String ImageTag = "latest"
         String ExtraPlink2Args = ""
@@ -16,7 +15,6 @@ workflow VCFToPlink {
             VCF = VCF,
             InputFormat = InputFormat,
             MinAF = MinAF,
-            HWEPvalThreshold = HWEPvalThreshold,
             OutputPrefix = OutputPrefix,
             ImageTag = ImageTag,
             ExtraPlink2Args = ExtraPlink2Args
@@ -35,7 +33,6 @@ task Plink2MakePgen {
         File VCF
         String InputFormat = "vcf"
         Float MinAF = 0.01
-        Float HWEPvalThreshold = 0.000001
         String OutputPrefix = "plink_out"
         String ImageTag = "latest"
         String ExtraPlink2Args = ""
@@ -61,7 +58,6 @@ task Plink2MakePgen {
             --double-id \
             --allow-extra-chr \
             --maf ~{MinAF} \
-            --hwe ~{HWEPvalThreshold} \
             ~{ExtraPlink2Args} \
             --make-pgen \
             --out ~{OutputPrefix}
