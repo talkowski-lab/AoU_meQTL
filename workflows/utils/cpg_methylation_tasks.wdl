@@ -101,10 +101,11 @@ task BinCpGs {
         Int? DiskGB
     }
 
-    # size(CpGBed) is the file's on-disk (possibly gzip-compressed) size, but
-    # it gets decompressed to a plain copy below, so budget for an inflated
-    # decompressed working set rather than just a small multiple of that.
-    Int auto_disk_size = ceil(size(CpGBed, "GB") * 8) + 10
+    # size(CpGBed)/size(BinsBed) are the files' on-disk (possibly
+    # gzip-compressed) sizes, but both get decompressed to plain copies
+    # below, so budget for an inflated decompressed working set rather than
+    # just a small multiple of that.
+    Int auto_disk_size = ceil((size(CpGBed, "GB") + size(BinsBed, "GB")) * 8) + 10
 
     command <<<
         set -euo pipefail
@@ -114,6 +115,25 @@ task BinCpGs {
         # it, while passing already-plain-text input through unchanged, so
         # this works either way without needing to know up front.
         zcat -f ~{CpGBed} > cpg_bed_plain.bed
+
+        # BinsBed may also be gzip-compressed (e.g.
+        # resources/functional_regions.hg38.bed.gz).
+        zcat -f ~{BinsBed} > bins_bed_plain.bed
+
+        # Bins used for binning need a name in column 4 to carry an
+        # identifier through to the output. If BinsBed is a plain 3-column
+        # bed (chrom/start/end, e.g. bedtools makewindows output with no
+        # name column), synthesize one from the interval itself, in the same
+        # 1-based inclusive samtools/tabix style used elsewhere in these
+        # workflows (e.g. IntervalString); otherwise keep whatever name is
+        # already there (e.g. functional_regions.hg38.bed.gz's region_type
+        # column).
+        n_bins_cols=$(awk -F'\t' '!/^#/ {print NF; exit}' bins_bed_plain.bed)
+        if [[ "$n_bins_cols" -eq 3 ]]; then
+            awk -F'\t' -v OFS='\t' '!/^#/ {print $1, $2, $3, $1":"($2 + 1)"-"$3}' bins_bed_plain.bed > bins_named.bed
+        else
+            awk -F'\t' '!/^#/' bins_bed_plain.bed > bins_named.bed
+        fi
 
         # bedtools map has no weighted-mean operation, so append an
         # integer-coverage column and a coverage*methylation column to the
@@ -130,14 +150,14 @@ task BinCpGs {
         }' cpg_bed_plain.bed > cpg_with_weight.bed
 
         {
-            printf '#chrom\tstart\tend\tnum_cpgs\ttotal_coverage\tweighted_mean_methylation\tunweighted_mean_methylation\n'
-            bedtools map -a ~{BinsBed} -b cpg_with_weight.bed \
+            printf '#chrom\tstart\tend\tname\tnum_cpgs\ttotal_coverage\tweighted_mean_methylation\tunweighted_mean_methylation\n'
+            bedtools map -a bins_named.bed -b cpg_with_weight.bed \
                     -c ~{MethCol},~{MethCol},"$cov_int_col","$weight_col" \
                     -o count,mean,sum,sum \
                 | awk -F'\t' -v OFS='\t' '
-                    $4 > 0 {
-                        weighted_mean = ($6 > 0) ? sprintf("%.4f", $7 / $6) : "NA"
-                        printf "%s\t%s\t%s\t%s\t%s\t%s\t%.4f\n", $1, $2, $3, $4, $6, weighted_mean, $5
+                    $5 > 0 {
+                        weighted_mean = ($7 > 0) ? sprintf("%.4f", $8 / $7) : "NA"
+                        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%.4f\n", $1, $2, $3, $4, $5, $7, weighted_mean, $6
                     }' \
                 | sort -k1,1 -k2,2n
         } > ~{OutputPrefix}.bed
