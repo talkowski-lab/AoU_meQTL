@@ -5,6 +5,48 @@ version 1.0
 # fixed-size window bed from a chrom.sizes file, and aggregate CpG calls
 # into whatever bins bed is supplied.
 
+task Unzip {
+    input {
+        File InputFile
+        String OutputName = "decompressed.bed"
+        # Only needs gzip/cat, not bedtools -- debian:bookworm-slim is the
+        # same base this repo's own envs/Dockerfile.bioinformatics uses, so
+        # it's a predictable GNU gzip rather than pulling in the bedtools
+        # image (and its BusyBox zcat) just for this.
+        String DockerImage = "debian:bookworm-slim"
+        Int MemoryGB = 1
+        Int CPU = 1
+        Int? DiskGB
+    }
+
+    # size() only sees InputFile's on-disk (compressed) size, so budget for
+    # an inflated decompressed working set rather than just a small multiple
+    # of that.
+    Int auto_disk_size = ceil(size(InputFile, "GB") * 8) + 5
+
+    command <<<
+        set -euo pipefail
+
+        # Callers only invoke this task when InputFile's name ends in .gz,
+        # so it's always genuinely gzip-compressed here -- no need to
+        # handle (or guess at) a particular zcat's behavior on plain input.
+        zcat ~{InputFile} > ~{OutputName}
+    >>>
+
+    runtime {
+        docker: DockerImage
+        memory: MemoryGB + " GB"
+        cpu: CPU
+        disks: "local-disk " + select_first([DiskGB, auto_disk_size]) + " SSD"
+        preemptible: 3
+        maxRetries: 2
+    }
+
+    output {
+        File DecompressedFile = OutputName
+    }
+}
+
 task IntersectWithIntervals {
     input {
         File CpGBed
@@ -101,31 +143,10 @@ task BinCpGs {
         Int? DiskGB
     }
 
-    # size(CpGBed)/size(BinsBed) are the files' on-disk (possibly
-    # gzip-compressed) sizes, but both get decompressed to plain copies
-    # below, so budget for an inflated decompressed working set rather than
-    # just a small multiple of that.
-    Int auto_disk_size = ceil((size(CpGBed, "GB") + size(BinsBed, "GB")) * 8) + 10
+    Int auto_disk_size = ceil((size(CpGBed, "GB") + size(BinsBed, "GB")) * 2) + 10
 
     command <<<
         set -euo pipefail
-
-        # CpGBed/BinsBed may each be gzip-compressed (e.g. CpGBed straight
-        # from pb-CpG-tools, which emits .bed.gz; BinsBed from
-        # ref/functional_regions.hg38.bed.gz) or plain text. The
-        # image's zcat is BusyBox's, which -- unlike GNU gzip's -- refuses
-        # to pass plain text through even with -f ("no gzip/bzip2/xz magic"),
-        # so detect gzip ourselves via its magic bytes and only invoke zcat
-        # when actually needed.
-        maybe_decompress() {
-            if [[ "$(head -c2 "$1" | od -An -tx1 | tr -d ' \n')" == "1f8b" ]]; then
-                zcat "$1" > "$2"
-            else
-                cat "$1" > "$2"
-            fi
-        }
-        maybe_decompress ~{CpGBed} cpg_bed_plain.bed
-        maybe_decompress ~{BinsBed} bins_bed_plain.bed
 
         # Bins used for binning need a name in column 4 to carry an
         # identifier through to the output. If BinsBed is a plain 3-column
@@ -135,11 +156,11 @@ task BinCpGs {
         # workflows (e.g. IntervalString); otherwise keep whatever name is
         # already there (e.g. functional_regions.hg38.bed.gz's region_type
         # column).
-        n_bins_cols=$(awk -F'\t' '!/^#/ {print NF; exit}' bins_bed_plain.bed)
+        n_bins_cols=$(awk -F'\t' '!/^#/ {print NF; exit}' ~{BinsBed})
         if [[ "$n_bins_cols" -eq 3 ]]; then
-            awk -F'\t' -v OFS='\t' '!/^#/ {print $1, $2, $3, $1":"($2 + 1)"-"$3}' bins_bed_plain.bed > bins_named.bed
+            awk -F'\t' -v OFS='\t' '!/^#/ {print $1, $2, $3, $1":"($2 + 1)"-"$3}' ~{BinsBed} | sort -k1,1 -k2,2n > bins_named.bed
         else
-            awk -F'\t' '!/^#/' bins_bed_plain.bed > bins_named.bed
+            awk -F'\t' '!/^#/' ~{BinsBed} | sort -k1,1 -k2,2n > bins_named.bed
         fi
 
         # bedtools map has no weighted-mean operation, so append an
@@ -147,14 +168,25 @@ task BinCpGs {
         # CpG bed; map then sums both per bin, and weighted_mean_methylation
         # is their ratio (computed below, after mapping down to per-bin rows
         # instead of per-CpG rows).
-        n_orig_cols=$(head -n1 cpg_bed_plain.bed | awk -F'\t' '{print NF}')
+        n_orig_cols=$(head -n1 ~{CpGBed} | awk -F'\t' '{print NF}')
         cov_int_col=$((n_orig_cols + 1))
         weight_col=$((n_orig_cols + 2))
 
+        # bedtools map requires -a and -b to share one consistent
+        # chromosome order, but doesn't enforce or create one itself:
+        # BinsBed may come from ChromSizes/.fai order (e.g. chr1, chr2, ...,
+        # chr10, ...) while CpGBed may have been independently re-sorted
+        # lexicographically (e.g. for tabix indexing: chr1, chr10, ...,
+        # chr2, ...). A mismatch doesn't just drop the affected bins -- map
+        # silently zeroes out bins for chromosomes it's already swept past
+        # before erroring out entirely on the first chromosome where the
+        # two orders actually diverge, losing everything after that point
+        # in -a's traversal. Sorting both inputs here guarantees they agree
+        # regardless of how either arrived.
         awk -F'\t' -v OFS='\t' -v m=~{MethCol} -v c=~{CovCol} '{
             cov_int = int($c)
             print $0, cov_int, $m * cov_int
-        }' cpg_bed_plain.bed > cpg_with_weight.bed
+        }' ~{CpGBed} | sort -k1,1 -k2,2n > cpg_with_weight.bed
 
         {
             printf '#chrom\tstart\tend\tname\tnum_cpgs\ttotal_coverage\tweighted_mean_methylation\tunweighted_mean_methylation\n'

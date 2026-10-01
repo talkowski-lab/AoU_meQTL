@@ -16,18 +16,31 @@ workflow BinCpGMethylation {
     }
 
     Boolean RestrictToIntervals = defined(IntervalBed) || defined(IntervalString)
+    Boolean CpGBedIsGz = basename(CpGBed) != sub(basename(CpGBed), "\\.gz$", "")
+
+    String FilteredSuffix = if RestrictToIntervals then "_filtered" else ""
+    String BinnedOutputPrefix = "~{OutputPrefix}_binned_methyl_~{WindowSize}bp~{FilteredSuffix}"
+
+    if (CpGBedIsGz) {
+        call CpGTasks.Unzip as UnzipCpGBed {
+            input:
+                InputFile = CpGBed
+        }
+    }
+
+    File CpGBedPlain = select_first([UnzipCpGBed.DecompressedFile, CpGBed])
 
     if (RestrictToIntervals) {
         call CpGTasks.IntersectWithIntervals as IntersectWithIntervals {
             input:
-                CpGBed = CpGBed,
+                CpGBed = CpGBedPlain,
                 IntervalBed = IntervalBed,
                 IntervalString = IntervalString,
                 DockerImage = DockerImage
         }
     }
 
-    File CpGBedForBinning = select_first([IntersectWithIntervals.FilteredCpGBed, CpGBed])
+    File CpGBedForBinning = select_first([IntersectWithIntervals.FilteredCpGBed, CpGBedPlain])
 
     call CpGTasks.MakeWindows as MakeWindows {
         input:
@@ -40,7 +53,7 @@ workflow BinCpGMethylation {
         input:
             CpGBed = CpGBedForBinning,
             BinsBed = MakeWindows.WindowsBed,
-            OutputPrefix = OutputPrefix,
+            OutputPrefix = BinnedOutputPrefix,
             MethCol = MethCol,
             CovCol = CovCol,
             DockerImage = DockerImage
