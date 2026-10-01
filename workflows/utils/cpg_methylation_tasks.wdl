@@ -101,24 +101,33 @@ task BinCpGs {
         Int? DiskGB
     }
 
-    Int auto_disk_size = ceil(size(CpGBed, "GB") * 2) + 10
+    # size(CpGBed) is the file's on-disk (possibly gzip-compressed) size, but
+    # it gets decompressed to a plain copy below, so budget for an inflated
+    # decompressed working set rather than just a small multiple of that.
+    Int auto_disk_size = ceil(size(CpGBed, "GB") * 8) + 10
 
     command <<<
         set -euo pipefail
+
+        # CpGBed may be gzip-compressed (e.g. straight from pb-CpG-tools,
+        # which emits .bed.gz) -- zcat -f auto-detects gzip and decompresses
+        # it, while passing already-plain-text input through unchanged, so
+        # this works either way without needing to know up front.
+        zcat -f ~{CpGBed} > cpg_bed_plain.bed
 
         # bedtools map has no weighted-mean operation, so append an
         # integer-coverage column and a coverage*methylation column to the
         # CpG bed; map then sums both per bin, and weighted_mean_methylation
         # is their ratio (computed below, after mapping down to per-bin rows
         # instead of per-CpG rows).
-        n_orig_cols=$(head -n1 ~{CpGBed} | awk -F'\t' '{print NF}')
+        n_orig_cols=$(head -n1 cpg_bed_plain.bed | awk -F'\t' '{print NF}')
         cov_int_col=$((n_orig_cols + 1))
         weight_col=$((n_orig_cols + 2))
 
         awk -F'\t' -v OFS='\t' -v m=~{MethCol} -v c=~{CovCol} '{
             cov_int = int($c)
             print $0, cov_int, $m * cov_int
-        }' ~{CpGBed} > cpg_with_weight.bed
+        }' cpg_bed_plain.bed > cpg_with_weight.bed
 
         {
             printf '#chrom\tstart\tend\tnum_cpgs\ttotal_coverage\tweighted_mean_methylation\tunweighted_mean_methylation\n'
