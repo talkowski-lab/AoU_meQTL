@@ -110,15 +110,22 @@ task BinCpGs {
     command <<<
         set -euo pipefail
 
-        # CpGBed may be gzip-compressed (e.g. straight from pb-CpG-tools,
-        # which emits .bed.gz) -- zcat -f auto-detects gzip and decompresses
-        # it, while passing already-plain-text input through unchanged, so
-        # this works either way without needing to know up front.
-        zcat -f ~{CpGBed} > cpg_bed_plain.bed
-
-        # BinsBed may also be gzip-compressed (e.g.
-        # resources/functional_regions.hg38.bed.gz).
-        zcat -f ~{BinsBed} > bins_bed_plain.bed
+        # CpGBed/BinsBed may each be gzip-compressed (e.g. CpGBed straight
+        # from pb-CpG-tools, which emits .bed.gz; BinsBed from
+        # ref/functional_regions.hg38.bed.gz) or plain text. The
+        # image's zcat is BusyBox's, which -- unlike GNU gzip's -- refuses
+        # to pass plain text through even with -f ("no gzip/bzip2/xz magic"),
+        # so detect gzip ourselves via its magic bytes and only invoke zcat
+        # when actually needed.
+        maybe_decompress() {
+            if [[ "$(head -c2 "$1" | od -An -tx1 | tr -d ' \n')" == "1f8b" ]]; then
+                zcat "$1" > "$2"
+            else
+                cat "$1" > "$2"
+            fi
+        }
+        maybe_decompress ~{CpGBed} cpg_bed_plain.bed
+        maybe_decompress ~{BinsBed} bins_bed_plain.bed
 
         # Bins used for binning need a name in column 4 to carry an
         # identifier through to the output. If BinsBed is a plain 3-column
