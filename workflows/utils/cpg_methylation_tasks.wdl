@@ -11,12 +11,13 @@ task IntersectWithIntervals {
         File? IntervalBed
         String? IntervalString
         String OutputName = "filtered_cpgs.bed"
-        String ImageTag = "latest"
-        Int MemoryGB = 4
+        String DockerImage = "quay.io/biocontainers/bedtools:2.31.1--h13024bc_3"
+        Int MemoryGB = 2
+        Int CPU = 1
         Int? DiskGB
     }
 
-    Int auto_disk_size = ceil(size(CpGBed, "GB") * 3) + 10
+    Int auto_disk_size = ceil(size(CpGBed, "GB") * 2) + 5
 
     command <<<
         set -euo pipefail
@@ -41,9 +42,9 @@ task IntersectWithIntervals {
     >>>
 
     runtime {
-        docker: "ayenkin1871/aou_meqtl-bioinformatics:" + ImageTag
+        docker: DockerImage
         memory: MemoryGB + " GB"
-        cpu: 2
+        cpu: CPU
         disks: "local-disk " + select_first([DiskGB, auto_disk_size]) + " SSD"
         preemptible: 3
         maxRetries: 2
@@ -59,8 +60,9 @@ task MakeWindows {
         File ChromSizes
         Int WindowSize
         String OutputName = "windows.bed"
-        String ImageTag = "latest"
-        Int MemoryGB = 2
+        String DockerImage = "quay.io/biocontainers/bedtools:2.31.1--h13024bc_3"
+        Int MemoryGB = 1
+        Int CPU = 1
         Int? DiskGB
     }
 
@@ -73,9 +75,9 @@ task MakeWindows {
     >>>
 
     runtime {
-        docker: "ayenkin1871/aou_meqtl-bioinformatics:" + ImageTag
+        docker: DockerImage
         memory: MemoryGB + " GB"
-        cpu: 1
+        cpu: CPU
         disks: "local-disk " + select_first([DiskGB, auto_disk_size]) + " SSD"
         preemptible: 3
         maxRetries: 2
@@ -93,12 +95,13 @@ task BinCpGs {
         String OutputPrefix = "cpg_bins"
         Int MethCol = 4
         Int CovCol = 6
-        String ImageTag = "latest"
-        Int MemoryGB = 8
+        String DockerImage = "quay.io/biocontainers/bedtools:2.31.1--h13024bc_3"
+        Int MemoryGB = 4
+        Int CPU = 1
         Int? DiskGB
     }
 
-    Int auto_disk_size = ceil(size(CpGBed, "GB") * 3) + 10
+    Int auto_disk_size = ceil(size(CpGBed, "GB") * 2) + 10
 
     command <<<
         set -euo pipefail
@@ -132,9 +135,9 @@ task BinCpGs {
     >>>
 
     runtime {
-        docker: "ayenkin1871/aou_meqtl-bioinformatics:" + ImageTag
+        docker: DockerImage
         memory: MemoryGB + " GB"
-        cpu: 4
+        cpu: CPU
         disks: "local-disk " + select_first([DiskGB, auto_disk_size]) + " SSD"
         preemptible: 3
         maxRetries: 2

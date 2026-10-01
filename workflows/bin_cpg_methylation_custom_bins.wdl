@@ -11,7 +11,7 @@ workflow BinCpGMethylationCustomBins {
         String OutputPrefix = "cpg_bins"
         Int MethCol = 4
         Int CovCol = 6
-        String ImageTag = "latest"
+        String DockerImage = "quay.io/biocontainers/bedtools:2.31.1--h13024bc_3"
     }
 
     Boolean RestrictToIntervals = defined(IntervalBed) || defined(IntervalString)
@@ -22,7 +22,7 @@ workflow BinCpGMethylationCustomBins {
                 CpGBed = CpGBed,
                 IntervalBed = IntervalBed,
                 IntervalString = IntervalString,
-                ImageTag = ImageTag
+                DockerImage = DockerImage
         }
     }
 
@@ -35,7 +35,7 @@ workflow BinCpGMethylationCustomBins {
             OutputPrefix = OutputPrefix,
             MethCol = MethCol,
             CovCol = CovCol,
-            ImageTag = ImageTag
+            DockerImage = DockerImage
     }
 
     output {

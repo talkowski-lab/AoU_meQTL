@@ -36,7 +36,7 @@ Bins per-CpG methylation calls (a pb-CpG-tools bed) into genomic bins and summar
 - `MethCol`/`CovCol` (defaults `4`/`6`) are 1-based column indices into `CpGBed`, assuming the standard pb-CpG-tools combined pileup bed (`chrom, start, end, modification_probability, haplotype, coverage`). Adjust these if the input bed has a different layout (e.g. "count" mode, which adds modified/unmodified count columns).
 - `ChromSizes` (BinCpGMethylation only) is a standard 2-column `chrom<TAB>size` file (as produced by `cut -f1,2 ref.fa.fai` or UCSC `chrom.sizes`).
 - Output bed has a `#`-prefixed header and is sorted by `chrom,start`.
-- Docker image: same `envs/Dockerfile.bioinformatics` as VCFToPlink (just `bedtools`/`awk` — no `python3`, since nothing in the image needs it anymore).
+- Docker image: the public `quay.io/biocontainers/bedtools` image (not `envs/Dockerfile.bioinformatics`) — these tasks only need `bedtools`/`awk`/`sort`, all present in that image, so there's no need to build/push a custom image or wait on this repo's CI. Tag is set per-task via the `DockerImage` input (default `quay.io/biocontainers/bedtools:2.31.1--h13024bc_3`), threaded down from the `DockerImage` workflow input.
 
 ### 3. Functional regions resource (`resources/functional_regions.hg38.bed.gz`)
 

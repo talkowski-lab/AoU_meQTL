@@ -12,7 +12,7 @@ workflow BinCpGMethylation {
         String OutputPrefix = "cpg_bins"
         Int MethCol = 4
         Int CovCol = 6
-        String ImageTag = "latest"
+        String DockerImage = "quay.io/biocontainers/bedtools:2.31.1--h13024bc_3"
     }
 
     Boolean RestrictToIntervals = defined(IntervalBed) || defined(IntervalString)
@@ -23,7 +23,7 @@ workflow BinCpGMethylation {
                 CpGBed = CpGBed,
                 IntervalBed = IntervalBed,
                 IntervalString = IntervalString,
-                ImageTag = ImageTag
+                DockerImage = DockerImage
         }
     }
 
@@ -33,7 +33,7 @@ workflow BinCpGMethylation {
         input:
             ChromSizes = ChromSizes,
             WindowSize = WindowSize,
-            ImageTag = ImageTag
+            DockerImage = DockerImage
     }
 
     call CpGTasks.BinCpGs as BinCpGs {
@@ -43,7 +43,7 @@ workflow BinCpGMethylation {
             OutputPrefix = OutputPrefix,
             MethCol = MethCol,
             CovCol = CovCol,
-            ImageTag = ImageTag
+            DockerImage = DockerImage
     }
 
     output {
