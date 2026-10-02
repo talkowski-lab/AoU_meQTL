@@ -35,3 +35,12 @@ workflows:
         - main
       tags:
         - /.*/
+
+  - subclass: WDL
+    name: CpGSummaryStats
+    primaryDescriptorPath: /workflows/cpg_summary_stats.wdl
+    filters:
+      branches:
+        - main
+      tags:
+        - /.*/
