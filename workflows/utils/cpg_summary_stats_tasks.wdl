@@ -4,48 +4,14 @@ version 1.0
 # standard pb-CpG-tools combined pileup bed -- chrom, start, end,
 # modification_probability, haplotype, coverage) into per-CpG mean and
 # variance across samples, without ever joining samples into a wide matrix.
-# MakeBatches splits the sample list into chunks; ComputeBatchStats reduces
-# each chunk to one row per CpG (count/sum/sum-of-squares, the additive
-# sufficient statistics for variance); CombineStats sums those same per-CpG
-# statistics across batches and converts the totals to mean and sample
-# variance. Every intermediate file has at most one row per CpG, regardless
-# of how many samples feed in. A CpG's identity is just its chrom:start:end
-# coordinate -- there's no separate feature-name column to track.
-
-task MakeBatches {
-    input {
-        Array[File] BedFiles
-        Int BatchSize
-        String DockerImage = "debian:bookworm-slim"
-        Int MemoryGB = 1
-        Int CPU = 1
-        Int? DiskGB
-    }
-
-    Int auto_disk_size = ceil(size(BedFiles, "GB")) + 5
-
-    command <<<
-        set -euo pipefail
-
-        bed_files=(~{sep=' ' BedFiles})
-        printf '%s\n' "${bed_files[@]}" > manifest.txt
-        split -d -a 4 -l ~{BatchSize} manifest.txt batch_
-        for f in batch_*; do mv "$f" "$f.txt"; done
-    >>>
-
-    runtime {
-        docker: DockerImage
-        memory: MemoryGB + " GB"
-        cpu: CPU
-        disks: "local-disk " + select_first([DiskGB, auto_disk_size]) + " SSD"
-        preemptible: 3
-        maxRetries: 2
-    }
-
-    output {
-        Array[File] BatchManifests = glob("batch_*.txt")
-    }
-}
+# The workflow splits the sample list into chunks (in pure WDL -- see its
+# own comment on why); ComputeBatchStats reduces each chunk to one row per
+# CpG (count/sum/sum-of-squares, the additive sufficient statistics for
+# variance); CombineStats sums those same per-CpG statistics across batches
+# and converts the totals to mean and sample variance. Every intermediate
+# file has at most one row per CpG, regardless of how many samples feed in.
+# A CpG's identity is just its chrom:start:end coordinate -- there's no
+# separate feature-name column to track.
 
 task ComputeBatchStats {
     input {

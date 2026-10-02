@@ -3,51 +3,10 @@ version 1.0
 # Shared tasks for BuildBedMatrix: turn N per-sample bed files into a single
 # wide bed matrix (chrom, start, end, feature, then one value column per
 # sample) suitable as QTL-mapping phenotype input. Batched so large sample
-# counts don't all get joined in a single task: MakeBatches splits the
-# sample list into chunks, BuildMatrixBatch builds one matrix per chunk, and
-# JoinMatrices combines the per-batch matrices into the final one.
-
-task MakeBatches {
-    input {
-        Array[File] BedFiles
-        Array[String] SampleIDs
-        Int BatchSize
-        String DockerImage = "debian:bookworm-slim"
-        Int MemoryGB = 1
-        Int CPU = 1
-        Int? DiskGB
-    }
-
-    Int auto_disk_size = ceil(size(BedFiles, "GB")) + 5
-
-    command <<<
-        set -euo pipefail
-
-        bed_files=(~{sep=' ' BedFiles})
-        sample_ids=(~{sep=' ' SampleIDs})
-        if [[ "${#bed_files[@]}" -ne "${#sample_ids[@]}" ]]; then
-            echo "BedFiles and SampleIDs must be the same length (got ${#bed_files[@]} and ${#sample_ids[@]})" >&2
-            exit 1
-        fi
-
-        paste -d '\t' <(printf '%s\n' "${bed_files[@]}") <(printf '%s\n' "${sample_ids[@]}") > manifest.tsv
-        split -d -a 4 -l ~{BatchSize} manifest.tsv batch_
-        for f in batch_*; do mv "$f" "$f.tsv"; done
-    >>>
-
-    runtime {
-        docker: DockerImage
-        memory: MemoryGB + " GB"
-        cpu: CPU
-        disks: "local-disk " + select_first([DiskGB, auto_disk_size]) + " SSD"
-        preemptible: 3
-        maxRetries: 2
-    }
-
-    output {
-        Array[File] BatchManifests = glob("batch_*.tsv")
-    }
-}
+# counts don't all get joined in a single task: the workflow splits the
+# sample list into chunks (in pure WDL -- see its own comment on why),
+# BuildMatrixBatch builds one matrix per chunk, and JoinMatrices combines
+# the per-batch matrices into the final one.
 
 task BuildMatrixBatch {
     input {

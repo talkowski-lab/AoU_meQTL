@@ -19,24 +19,36 @@ workflow BuildBedMatrix {
         String DockerImage = "debian:bookworm-slim"
     }
 
-    call MatrixTasks.MakeBatches as MakeBatches {
-        input:
-            BedFiles = BedFiles,
-            SampleIDs = SampleIDs,
-            BatchSize = BatchSize,
-            DockerImage = DockerImage
-    }
+    Int NumSamples = length(BedFiles)
+    Int NumBatches = (NumSamples + BatchSize - 1) / BatchSize
 
-    scatter (manifest in MakeBatches.BatchManifests) {
-        Array[Array[String]] ManifestRows = read_tsv(manifest)
-        Array[Array[String]] ManifestCols = transpose(ManifestRows)
-        Array[File] BatchBedFiles = ManifestCols[0]
-        Array[String] BatchSampleIDs = ManifestCols[1]
+    # Batching is done here in pure WDL expressions -- not via a task that
+    # writes BedFiles' paths into a manifest for a later task to read back
+    # -- because a task only sees each File's *localized* path inside its
+    # own sandbox, not a portable reference. Round-tripping that path
+    # through a file and re-coercing it to File downstream works on a local
+    # backend (shared filesystem) but breaks on Cromwell/Terra's GCP
+    # backend, where each task localizes inputs into its own container: the
+    # re-coerced "File" is just a bare local-looking path from a different
+    # task's filesystem, which Cromwell can't resolve to the original GCS
+    # object. Indexing BedFiles[i]/SampleIDs[i] directly, as below, always
+    # keeps the original tracked File reference.
+    scatter (b in range(NumBatches)) {
+        Int BatchStart = b * BatchSize
+        Int BatchEndRaw = BatchStart + BatchSize
+        Int BatchEnd = if BatchEndRaw < NumSamples then BatchEndRaw else NumSamples
+
+        scatter (i in range(NumSamples)) {
+            if (i >= BatchStart && i < BatchEnd) {
+                File BatchBedFile = BedFiles[i]
+                String BatchSampleID = SampleIDs[i]
+            }
+        }
 
         call MatrixTasks.BuildMatrixBatch as BuildMatrixBatch {
             input:
-                BedFiles = BatchBedFiles,
-                SampleIDs = BatchSampleIDs,
+                BedFiles = select_all(BatchBedFile),
+                SampleIDs = select_all(BatchSampleID),
                 FeatureCol = FeatureCol,
                 ValueCol = ValueCol,
                 DockerImage = DockerImage

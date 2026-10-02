@@ -23,19 +23,30 @@ workflow CpGSummaryStats {
         String DockerImage = "debian:bookworm-slim"
     }
 
-    call StatsTasks.MakeBatches as MakeBatches {
-        input:
-            BedFiles = BedFiles,
-            BatchSize = BatchSize,
-            DockerImage = DockerImage
-    }
+    Int NumSamples = length(BedFiles)
+    Int NumBatches = (NumSamples + BatchSize - 1) / BatchSize
 
-    scatter (manifest in MakeBatches.BatchManifests) {
-        Array[File] BatchBedFiles = read_lines(manifest)
+    # Batching is done here in pure WDL expressions, not via a task that
+    # writes BedFiles' paths into a manifest for a later task to read back
+    # -- see BuildBedMatrix's build_bed_matrix.wdl for why that breaks on
+    # Cromwell/Terra's GCP backend (a task only sees each File's *localized*
+    # path inside its own sandbox, not a portable reference). Indexing
+    # BedFiles[i] directly, as below, always keeps the original tracked
+    # File reference.
+    scatter (b in range(NumBatches)) {
+        Int BatchStart = b * BatchSize
+        Int BatchEndRaw = BatchStart + BatchSize
+        Int BatchEnd = if BatchEndRaw < NumSamples then BatchEndRaw else NumSamples
+
+        scatter (i in range(NumSamples)) {
+            if (i >= BatchStart && i < BatchEnd) {
+                File BatchBedFile = BedFiles[i]
+            }
+        }
 
         call StatsTasks.ComputeBatchStats as ComputeBatchStats {
             input:
-                BedFiles = BatchBedFiles,
+                BedFiles = select_all(BatchBedFile),
                 ValueCol = ValueCol,
                 DockerImage = DockerImage
         }
