@@ -168,7 +168,15 @@ task BinCpGs {
         # CpG bed; map then sums both per bin, and weighted_mean_methylation
         # is their ratio (computed below, after mapping down to per-bin rows
         # instead of per-CpG rows).
-        n_orig_cols=$(head -n1 ~{CpGBed} | awk -F'\t' '{print NF}')
+        #
+        # Column count must come from the first DATA line, not head -n1:
+        # pb-CpG-tools' combined bed starts with several tab-free `##key=value`
+        # metadata lines plus a `#chrom\t...` column-header line, so head -n1
+        # would land on a line with zero tabs (NF=1), throwing off
+        # cov_int_col/weight_col for the whole file -- bedtools map would
+        # then read the real CpG's start/end coordinates back as coverage
+        # and weight instead of the columns actually appended below.
+        n_orig_cols=$(awk -F'\t' '!/^#/ {print NF; exit}' ~{CpGBed})
         cov_int_col=$((n_orig_cols + 1))
         weight_col=$((n_orig_cols + 2))
 
@@ -183,7 +191,7 @@ task BinCpGs {
         # two orders actually diverge, losing everything after that point
         # in -a's traversal. Sorting both inputs here guarantees they agree
         # regardless of how either arrived.
-        awk -F'\t' -v OFS='\t' -v m=~{MethCol} -v c=~{CovCol} '{
+        awk -F'\t' -v OFS='\t' -v m=~{MethCol} -v c=~{CovCol} '!/^#/ {
             cov_int = int($c)
             print $0, cov_int, $m * cov_int
         }' ~{CpGBed} | sort -k1,1 -k2,2n > cpg_with_weight.bed
