@@ -44,3 +44,12 @@ workflows:
         - main
       tags:
         - /.*/
+
+  - subclass: WDL
+    name: BuildFilteredCpGMatrix
+    primaryDescriptorPath: /workflows/build_filtered_cpg_matrix.wdl
+    filters:
+      branches:
+        - main
+      tags:
+        - /.*/
