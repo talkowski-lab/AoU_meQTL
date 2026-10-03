@@ -63,7 +63,7 @@ workflow BuildFilteredCpGMatrix {
 
         Boolean Bgzip = true
         String OutputPrefix = "filtered_cpg_matrix"
-        String DockerImage = "debian:bookworm-slim"
+        String BasicDockerImage = "debian:bookworm-slim"
         String BedtoolsDockerImage = "quay.io/biocontainers/bedtools:2.31.1--h13024bc_3"
     }
 
@@ -80,7 +80,7 @@ workflow BuildFilteredCpGMatrix {
             call CpGTasks.Unzip as UnzipBinsBed {
                 input:
                     InputFile = BinsBedInput,
-                    DockerImage = DockerImage
+                    DockerImage = BasicDockerImage
             }
         }
 
@@ -107,7 +107,7 @@ workflow BuildFilteredCpGMatrix {
             call CpGTasks.Unzip as UnzipCpGBed {
                 input:
                     InputFile = RawCpGBed,
-                    DockerImage = DockerImage
+                    DockerImage = BasicDockerImage
             }
         }
 
@@ -118,7 +118,7 @@ workflow BuildFilteredCpGMatrix {
                 input:
                     CpGBed = CpGBedPlain,
                     IntervalString = IntervalString,
-                    DockerImage = DockerImage
+                    DockerImage = BedtoolsDockerImage
             }
         }
 
@@ -157,7 +157,7 @@ workflow BuildFilteredCpGMatrix {
             input:
                 BinnedBeds = select_all(StatsBatchBed),
                 ValueCol = ValueCol,
-                DockerImage = DockerImage
+                DockerImage = BasicDockerImage
         }
     }
 
@@ -165,7 +165,7 @@ workflow BuildFilteredCpGMatrix {
         input:
             BatchStats = ComputeBinStatsBatch.BatchStats,
             TotalSamples = NumSamples,
-            DockerImage = DockerImage
+            DockerImage = BasicDockerImage
     }
 
     call FilterTasks.FilterBins as FilterBins {
@@ -176,7 +176,7 @@ workflow BuildFilteredCpGMatrix {
             MinVariance = MinVariance,
             MinDelta = MinDelta,
             OutputPrefix = OutputPrefix,
-            DockerImage = DockerImage
+            DockerImage = BasicDockerImage
     }
 
     # --- Restrict each sample's binned bed to passing bins before matrix
@@ -186,7 +186,7 @@ workflow BuildFilteredCpGMatrix {
             input:
                 BinnedBed = BinnedBeds[i],
                 PassingBinsBed = FilterBins.PassingBinsBed,
-                DockerImage = DockerImage
+                DockerImage = BasicDockerImage
         }
     }
 
@@ -214,7 +214,7 @@ workflow BuildFilteredCpGMatrix {
                 SampleIDs = select_all(MatrixBatchSampleID),
                 FeatureCol = 4,
                 ValueCol = ValueCol,
-                DockerImage = DockerImage
+                DockerImage = BasicDockerImage
         }
     }
 

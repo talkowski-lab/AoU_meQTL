@@ -27,7 +27,7 @@ task ComputeBatchStats {
         Int? DiskGB
     }
 
-    Int auto_disk_size = ceil(size(BedFiles, "GB") * 2) + 10
+    Int auto_disk_size = ceil(size(BedFiles, "GB") * 4) + 10
 
     command <<<
         set -euo pipefail
@@ -95,7 +95,7 @@ task CombineStats {
         Int? DiskGB
     }
 
-    Int auto_disk_size = ceil(size(BatchStats, "GB") * 2) + 10
+    Int auto_disk_size = ceil(size(BatchStats, "GB") * 4) + 10
 
     command <<<
         set -euo pipefail
