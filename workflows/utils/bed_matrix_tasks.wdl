@@ -93,11 +93,10 @@ task JoinMatrices {
     input {
         Array[File] BatchMatrices
         String OutputPrefix = "phenotype_matrix"
-        Boolean Bgzip = true
         # Only needs awk/sort/join/bgzip, not a full bioinformatics image --
         # this is the legacy standalone tabix/bgzip package (not htslib),
         # much lighter weight.
-        String DockerImage = "quay.io/biocontainers/tabix:0.2.6--ha92aebf_0"
+        String DockerImage = "debian:bookworm-slim"
         Int MemoryGB = 2
         Int CPU = 1
         Int? DiskGB
@@ -164,10 +163,6 @@ task JoinMatrices {
                 }
             ' acc.tsv | sort -k1,1 -k2,2n -k3,3n
         } > "~{OutputPrefix}.bed"
-
-        if [[ "~{Bgzip}" == "true" ]]; then
-            bgzip "~{OutputPrefix}.bed"
-        fi
     >>>
 
     runtime {
@@ -180,6 +175,32 @@ task JoinMatrices {
     }
 
     output {
-        File MatrixBed = if Bgzip then "~{OutputPrefix}.bed.gz" else "~{OutputPrefix}.bed"
+        File MatrixBed = "~{OutputPrefix}.bed"
+    }
+}
+
+task Bgzip {
+    input {
+        File InputFile
+        String DockerImage = "quay.io/biocontainers/htslib:1.22--h566b1c6_0"
+    }
+
+    Int disk_size = ceil(size(InputFile, "GB") * 2) + 10
+
+    command <<<
+        set -euo pipefail
+
+        bgzip -c ~{InputFile} > ~{basename(InputFile)}.gz
+    >>>
+
+    runtime {
+        docker: DockerImage
+        memory: "4G"
+        cpu: 2
+        disks: "local-disk " + disk_size + " HDD"
+    }
+
+    output {
+        File Output = basename(InputFile) + ".gz"
     }
 }

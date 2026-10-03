@@ -45,7 +45,7 @@ task ComputeBatchStats {
                 !/^#/ && $val != "NA" {
                     print $1":"$2":"$3, 1, $val, $val * $val
                 }
-            ' "$f"
+            ' <(zcat "$f")
         done | sort -k1,1 > combined.tsv
 
         # Collapse to one row per CpG by summing n/sum/sumsq across whatever

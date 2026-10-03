@@ -222,11 +222,18 @@ workflow BuildFilteredCpGMatrix {
         input:
             BatchMatrices = BuildMatrixBatch.MatrixBed,
             OutputPrefix = OutputPrefix,
-            Bgzip = Bgzip
+            DockerImage = BasicDockerImage
+    }
+
+    if (Bgzip) {
+      call MatrixTasks.Bgzip as Bgzip_task {
+          input:
+              InputFile = JoinMatrices.MatrixBed
+      }
     }
 
     output {
-        File Matrix = JoinMatrices.MatrixBed
+        File Matrix = select_first([Bgzip_task.Output, JoinMatrices.MatrixBed])
         File SummaryStats = FilterBins.FilteredStatsBed
     }
 }
