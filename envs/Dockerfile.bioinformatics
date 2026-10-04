@@ -16,6 +16,4 @@ RUN curl -sSL "https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_${PLIN
     && chmod +x /usr/local/bin/plink2 \
     && rm /tmp/plink2.zip
 
-COPY scripts/ /scripts/
-
 CMD ["bash"]

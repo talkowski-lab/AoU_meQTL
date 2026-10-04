@@ -9,7 +9,8 @@ version 1.0
 # -- the same running-total approach as CpGSummaryStats (count/sum/sum-of-
 # squares/min/max, folded in two passes so no stage ever joins samples into
 # a wide matrix), then label each bin PASS/FAIL against QC thresholds on
-# those statistics.
+# those statistics. Tabular reductions are delegated to single-purpose Polars
+# scripts in the project data-manipulation image.
 
 task ComputeBinStatsBatch {
     input {
@@ -18,7 +19,7 @@ task ComputeBinStatsBatch {
         # BuildFilteredCpGMatrix defaults this to 8 (unweighted_mean_methylation).
         Int ValueCol
         String OutputName = "batch_bin_stats.tsv"
-        String DockerImage = "debian:bookworm-slim"
+        String DockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
         Int MemoryGB = 2
         Int CPU = 1
         Int? DiskGB
@@ -32,39 +33,15 @@ task ComputeBinStatsBatch {
 
         binned_beds=(~{sep=' ' BinnedBeds})
 
-        # Reduce every sample's binned bed to chrom:start:end (a bin's
-        # identity) and a per-sample (n=1, num_cpgs, value, value^2) triple
-        # -- rows with a non-numeric value (e.g. weighted_mean_methylation
-        # being "NA" for a bin with zero total coverage) are skipped rather
-        # than corrupting the sums.
+        : > binned_manifest.tsv
         for f in "${binned_beds[@]}"; do
-            awk -F'\t' -v OFS='\t' -v val=~{ValueCol} '
-                !/^#/ && $val != "NA" {
-                    print $1":"$2":"$3, 1, $5, $val, $val * $val
-                }
-            ' "$f"
-        done | sort -k1,1 > combined.tsv
+            printf '%s\n' "$f" >> binned_manifest.tsv
+        done
 
-        # Collapse to one row per bin by summing n/num_cpgs/value/value^2 (and
-        # tracking min/max value) across whatever samples in this batch had
-        # that bin -- a bin absent from a given sample's binned bed (e.g.
-        # dropped by BinCpGs for having zero coverage there) just doesn't
-        # contribute.
-        awk -F'\t' -v OFS='\t' '
-            function emit() {
-                if (key != "") print key, n, sum_cpgs, sum_val, sumsq_val, min_val, max_val
-            }
-            {
-                if ($1 != key) {
-                    emit()
-                    key = $1; n = 0; sum_cpgs = 0; sum_val = 0; sumsq_val = 0; min_val = ""; max_val = ""
-                }
-                n += $2; sum_cpgs += $3; sum_val += $4; sumsq_val += $5
-                if (min_val == "" || $4 < min_val) min_val = $4
-                if (max_val == "" || $4 > max_val) max_val = $4
-            }
-            END { emit() }
-        ' combined.tsv > ~{OutputName}
+        python3 /scripts/compute_bin_batch_stats.py \
+            --manifest binned_manifest.tsv \
+            --value-col ~{ValueCol} \
+            --output "~{OutputName}"
     >>>
 
     runtime {
@@ -89,7 +66,7 @@ task CombineBinStats {
         # happened to have a given bin.
         Int TotalSamples
         String OutputName = "bin_stats.bed"
-        String DockerImage = "debian:bookworm-slim"
+        String DockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
         Int MemoryGB = 2
         Int CPU = 1
         Int? DiskGB
@@ -101,49 +78,16 @@ task CombineBinStats {
         set -euo pipefail
         export LC_ALL=C
 
-        cat ~{sep=' ' BatchStats} | sort -k1,1 > combined.tsv
+        batch_stats=(~{sep=' ' BatchStats})
+        : > stats_manifest.tsv
+        for f in "${batch_stats[@]}"; do
+            printf '%s\n' "$f" >> stats_manifest.tsv
+        done
 
-        # Same per-bin reduction as ComputeBinStatsBatch, just summing
-        # already-batched (n, sum_cpgs, sum_val, sumsq_val) quadruples (and
-        # taking the min/max of already-batched min/max values) across
-        # batches instead of per-sample ones -- then converts the final
-        # totals to mean/variance of value (Bessel's correction, n-1),
-        # min/max/delta (max - min) of value, mean number of CpGs, and
-        # presence. Bins seen in only one sample (n=1) get a mean/min/max/
-        # delta but no variance (NA, division by zero).
-        awk -F'\t' -v OFS='\t' -v total=~{TotalSamples} '
-            function emit() {
-                if (key == "") return
-                split(key, coord, ":")
-                name = coord[1]":"(coord[2] + 1)"-"coord[3]
-                mean_numcpgs = sum_cpgs / n
-                presence = n / total
-                delta = max_val - min_val
-                if (n > 1) {
-                    mean_val = sum_val / n
-                    variance_val = (sumsq_val - (sum_val * sum_val) / n) / (n - 1)
-                    printf "%s\t%s\t%s\t%s\t%d\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n", coord[1], coord[2], coord[3], name, n, mean_val, variance_val, min_val, max_val, delta, mean_numcpgs, presence
-                } else {
-                    mean_val = (n == 1) ? sum_val / n : "NA"
-                    printf "%s\t%s\t%s\t%s\t%d\t%s\tNA\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n", coord[1], coord[2], coord[3], name, n, mean_val, min_val, max_val, delta, mean_numcpgs, presence
-                }
-            }
-            {
-                if ($1 != key) {
-                    emit()
-                    key = $1; n = 0; sum_cpgs = 0; sum_val = 0; sumsq_val = 0; min_val = ""; max_val = ""
-                }
-                n += $2; sum_cpgs += $3; sum_val += $4; sumsq_val += $5
-                if (min_val == "" || $6 < min_val) min_val = $6
-                if (max_val == "" || $7 > max_val) max_val = $7
-            }
-            END { emit() }
-        ' combined.tsv | sort -k1,1 -k2,2n -k3,3n > body.tsv
-
-        {
-            printf '#chrom\tstart\tend\tname\tn\tmean_value\tvariance_value\tmin_value\tmax_value\tdelta\tmean_num_cpgs\tpresence\n'
-            cat body.tsv
-        } > ~{OutputName}
+        python3 /scripts/combine_bin_stats.py \
+            --manifest stats_manifest.tsv \
+            --total-samples ~{TotalSamples} \
+            --output "~{OutputName}"
     >>>
 
     runtime {

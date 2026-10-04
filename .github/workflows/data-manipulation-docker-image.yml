@@ -1,16 +1,18 @@
-name: Bioinformatics Docker Image CI
+name: Data Manipulation Docker Image CI
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'envs/Dockerfile.bioinformatics'    # the env's own Dockerfile
+      - 'scripts/**'
+      - 'envs/Dockerfile.data-manipulation'
     branches:
       - main
       - develop
   pull_request:
     paths:
-      - 'envs/Dockerfile.bioinformatics'
+      - 'scripts/**'
+      - 'envs/Dockerfile.data-manipulation'
     branches:
       - main
 
@@ -38,7 +40,7 @@ jobs:
         run: |
           REPO_NAME=${GITHUB_REPOSITORY##*/}
           REPO_NAME=${REPO_NAME,,}
-          ENV_NAME=$(basename envs/Dockerfile.bioinformatics)
+          ENV_NAME=$(basename envs/Dockerfile.data-manipulation)
           ENV_NAME=${ENV_NAME#Dockerfile.}
           echo "IMAGE=${{ vars.DOCKERHUB_USERNAME }}/${REPO_NAME}-${ENV_NAME}" >> "$GITHUB_OUTPUT"
           echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
@@ -47,7 +49,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: envs/Dockerfile.bioinformatics
+          file: envs/Dockerfile.data-manipulation
           push: true
           tags: |
             ${{ steps.meta.outputs.IMAGE }}:latest

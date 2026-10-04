@@ -1,0 +1,13 @@
+## Lightweight data-manipulation runtime for Polars-backed table tasks.
+FROM python:3.11-slim
+
+ARG NUMPY_VERSION=2.1.3
+ARG POLARS_VERSION=1.43.2
+
+RUN pip install --no-cache-dir \
+        "numpy==${NUMPY_VERSION}" \
+        "polars==${POLARS_VERSION}"
+
+COPY scripts/ /scripts/
+
+CMD ["bash"]

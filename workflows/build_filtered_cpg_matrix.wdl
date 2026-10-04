@@ -64,6 +64,7 @@ workflow BuildFilteredCpGMatrix {
         Boolean Bgzip = true
         String OutputPrefix = "filtered_cpg_matrix"
         String BasicDockerImage = "debian:bookworm-slim"
+        String DataDockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
         String BedtoolsDockerImage = "quay.io/biocontainers/bedtools:2.31.1--h13024bc_3"
     }
 
@@ -157,7 +158,7 @@ workflow BuildFilteredCpGMatrix {
             input:
                 BinnedBeds = select_all(StatsBatchBed),
                 ValueCol = ValueCol,
-                DockerImage = BasicDockerImage
+                DockerImage = DataDockerImage
         }
     }
 
@@ -165,7 +166,7 @@ workflow BuildFilteredCpGMatrix {
         input:
             BatchStats = ComputeBinStatsBatch.BatchStats,
             TotalSamples = NumSamples,
-            DockerImage = BasicDockerImage
+            DockerImage = DataDockerImage
     }
 
     call FilterTasks.FilterBins as FilterBins {
@@ -214,7 +215,7 @@ workflow BuildFilteredCpGMatrix {
                 SampleIDs = select_all(MatrixBatchSampleID),
                 FeatureCol = 4,
                 ValueCol = ValueCol,
-                DockerImage = BasicDockerImage
+                DockerImage = DataDockerImage
         }
     }
 
@@ -222,7 +223,7 @@ workflow BuildFilteredCpGMatrix {
         input:
             BatchMatrices = BuildMatrixBatch.MatrixBed,
             OutputPrefix = OutputPrefix,
-            DockerImage = BasicDockerImage
+            DockerImage = DataDockerImage
     }
 
     if (Bgzip) {

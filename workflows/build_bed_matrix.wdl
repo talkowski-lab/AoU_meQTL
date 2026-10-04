@@ -16,7 +16,7 @@ workflow BuildBedMatrix {
         Int BatchSize = 50
         Boolean Bgzip = true
         String OutputPrefix = "phenotype_matrix"
-        String DockerImage = "debian:bookworm-slim"
+        String DockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
     }
 
     Int NumSamples = length(BedFiles)
@@ -59,10 +59,17 @@ workflow BuildBedMatrix {
         input:
             BatchMatrices = BuildMatrixBatch.MatrixBed,
             OutputPrefix = OutputPrefix,
-            Bgzip = Bgzip
+            DockerImage = DockerImage
+    }
+
+    if (Bgzip) {
+        call MatrixTasks.Bgzip as Bgzip_task {
+            input:
+                InputFile = JoinMatrices.MatrixBed
+        }
     }
 
     output {
-        File PhenotypeMatrix = JoinMatrices.MatrixBed
+        File PhenotypeMatrix = select_first([Bgzip_task.Output, JoinMatrices.MatrixBed])
     }
 }
