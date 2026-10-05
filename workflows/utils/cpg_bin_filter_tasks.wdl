@@ -20,8 +20,8 @@ task ComputeBinStatsBatch {
         Int ValueCol
         String OutputName = "batch_bin_stats.tsv"
         String DockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
-        Int MemoryGB = 2
-        Int CPU = 1
+        Int MemoryGB = 8
+        Int CPU = 2
         Int? DiskGB
     }
 
@@ -67,8 +67,8 @@ task CombineBinStats {
         Int TotalSamples
         String OutputName = "bin_stats.bed"
         String DockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
-        Int MemoryGB = 2
-        Int CPU = 1
+        Int MemoryGB = 8
+        Int CPU = 2
         Int? DiskGB
     }
 

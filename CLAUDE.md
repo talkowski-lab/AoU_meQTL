@@ -78,6 +78,10 @@ End-to-end pipeline from raw per-sample pb-CpG-tools beds to a QC-filtered QTL-m
 - Outputs: `Matrix` (the final filtered phenotype matrix, same shape as `BuildBedMatrix`'s output) and `SummaryStats` (the full per-bin stats bed for every bin considered, `PASS` and `FAIL` alike — useful for diagnosing/tuning the filter thresholds, not just consuming the matrix).
 - `MethCol`/`CovCol` (defaults `4`/`6`) thread through to `BinCpGs` same as in `BinCpGMethylation*`. `FeatureCol` isn't exposed as a workflow input (unlike `BuildBedMatrix`) — it's hardcoded to `4` (`name`) since every bed flowing into the matrix step here is always `BinCpGs`-shaped, not an arbitrary bed.
 
+### 7. BuildFilteredCpGMatrix_FromBins (`workflows/build_filtered_cpg_matrix_from_bins.wdl`)
+
+Same QC/filter/matrix tail as `BuildFilteredCpGMatrix`, but starts from already-binned per-sample `BinCpGs`-shaped beds (`BinnedBeds`) plus `SampleIDs`. Use this when the binning step has already been run and you only need to recompute per-bin summary stats, PASS/FAIL bins, filtered per-sample beds, and the final phenotype matrix. It reuses `ComputeBinStatsBatch`, `CombineBinStats`, `FilterBins`, `FilterBedToPassingBins`, `BuildMatrixBatch`, and `JoinMatrices`; inputs such as `ValueCol`, `BatchSize`, filter thresholds, `Bgzip`, `OutputPrefix`, `BasicDockerImage`, and `DataDockerImage` mirror the corresponding tail inputs of `BuildFilteredCpGMatrix`.
+
 ## Common Commands
 
 There is no build/test/lint tooling in this repo — it is WDL + a Dockerfile.

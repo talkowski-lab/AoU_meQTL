@@ -24,8 +24,8 @@ task ComputeBatchStats {
         Int ValueCol = 4
         String OutputName = "batch_stats.tsv"
         String DockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
-        Int MemoryGB = 2
-        Int CPU = 1
+        Int MemoryGB = 8
+        Int CPU = 2
         Int? DiskGB
     }
 
@@ -67,8 +67,8 @@ task CombineStats {
         Array[File] BatchStats
         String OutputPrefix = "cpg_summary_stats"
         String DockerImage = "ayenkin1871/aou_meqtl-data-manipulation:latest"
-        Int MemoryGB = 2
-        Int CPU = 1
+        Int MemoryGB = 8
+        Int CPU = 2
         Int? DiskGB
     }
 
