@@ -56,10 +56,13 @@ workflow BuildFilteredCpGMatrix {
         # literature is ~0.05-0.1 on a 0-1 scale). All four are plain
         # decimals, not scientific notation -- Dockstore's WDL parser
         # rejects "1e-4"-style float literals.
-        Float MinPresence = 0.8
-        Float MinMeanCpGs = 3.0
-        Float MinVariance = 0.001
-        Float MinDelta = 0.1
+        Float MinPresence = 0
+        Float MinMeanCpGs = 0
+        Float MinVariance = 0
+        # If true, FilterBins uses MinVariance / mean_num_cpgs as the
+        # effective per-bin variance threshold.
+        Boolean ScaleVarianceByMeanCpGs = false
+        Float MinDelta = 0
 
         Boolean Bgzip = true
         String OutputPrefix = "filtered_cpg_matrix"
@@ -175,6 +178,7 @@ workflow BuildFilteredCpGMatrix {
             MinPresence = MinPresence,
             MinMeanCpGs = MinMeanCpGs,
             MinVariance = MinVariance,
+            ScaleVarianceByMeanCpGs = ScaleVarianceByMeanCpGs,
             MinDelta = MinDelta,
             OutputPrefix = OutputPrefix,
             DockerImage = BasicDockerImage

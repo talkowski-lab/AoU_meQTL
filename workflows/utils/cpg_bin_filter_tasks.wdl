@@ -110,6 +110,9 @@ task FilterBins {
         Float MinPresence
         Float MinMeanCpGs
         Float MinVariance
+        # If true, use MinVariance / mean_num_cpgs as the effective
+        # variance threshold for each bin.
+        Boolean ScaleVarianceByMeanCpGs = false
         Float MinDelta
         String OutputPrefix = "filtered_cpg_matrix"
         String DockerImage = "debian:bookworm-slim"
@@ -131,11 +134,14 @@ task FilterBins {
         # have no variance (NA) and so automatically FAIL -- $7 != "NA" makes
         # that explicit, even though awk's numeric comparison on "NA"
         # (coerced to 0) would already fail the >= minvar check on its own.
+        # When ScaleVarianceByMeanCpGs is true, the effective variance
+        # threshold is relaxed to minvar / mean_num_cpgs.
         {
             head -n1 ~{StatsBed} | awk -F'\t' -v OFS='\t' '{ print $0, "filter" }'
-            awk -F'\t' -v OFS='\t' -v minp=~{MinPresence} -v mincpg=~{MinMeanCpGs} -v minvar=~{MinVariance} -v mindelta=~{MinDelta} '
+            awk -F'\t' -v OFS='\t' -v minp=~{MinPresence} -v mincpg=~{MinMeanCpGs} -v minvar=~{MinVariance} -v scale="~{ScaleVarianceByMeanCpGs}" -v mindelta=~{MinDelta} '
                 !/^#/ {
-                    pass = ($12 >= minp) && ($11 >= mincpg) && ($7 != "NA") && ($7 >= minvar) && ($10 >= mindelta)
+                    effective_minvar = (scale == "true" && $11 > 0) ? minvar / $11 : minvar
+                    pass = ($12 >= minp) && ($11 >= mincpg) && ($7 != "NA") && ($7 >= effective_minvar) && ($10 >= mindelta)
                     print $0, (pass ? "PASS" : "FAIL")
                 }
             ' ~{StatsBed}

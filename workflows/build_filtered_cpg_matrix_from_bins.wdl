@@ -23,6 +23,9 @@ workflow BuildFilteredCpGMatrix_FromBins {
         Float MinPresence = 0.8
         Float MinMeanCpGs = 3.0
         Float MinVariance = 0.001
+        # If true, FilterBins uses MinVariance / mean_num_cpgs as the
+        # effective per-bin variance threshold.
+        Boolean ScaleVarianceByMeanCpGs = false
         Float MinDelta = 0.1
 
         Boolean Bgzip = true
@@ -70,6 +73,7 @@ workflow BuildFilteredCpGMatrix_FromBins {
             MinPresence = MinPresence,
             MinMeanCpGs = MinMeanCpGs,
             MinVariance = MinVariance,
+            ScaleVarianceByMeanCpGs = ScaleVarianceByMeanCpGs,
             MinDelta = MinDelta,
             OutputPrefix = OutputPrefix,
             DockerImage = BasicDockerImage
