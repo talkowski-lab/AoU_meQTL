@@ -8,7 +8,7 @@ import gc
 
 import polars as pl
 
-from summary_common import coord_name, merge_bin_stats
+from summary_common import coord_name, empty_bin_stats, merge_bin_stats
 from table_io import NA, coordinate_sort, log, read_manifest
 
 
@@ -71,7 +71,7 @@ def main() -> None:
 
     log(f"Combining bin statistics from {len(paths)} batch files")
 
-    stats = None
+    stats = empty_bin_stats()
     for idx, path in enumerate(paths, start=1):
         log(f"Reading bin batch stats {idx}/{len(paths)}: {path}")
         batch = read_bin_reduced(path)

@@ -10,11 +10,39 @@ from table_io import coordinate_sort
 COORDS = ["chrom", "start", "end"]
 
 
-def merge_cpg_stats(stats: pl.DataFrame | None, update: pl.DataFrame) -> pl.DataFrame:
-    if stats is None:
-        return update
+def empty_cpg_stats() -> pl.DataFrame:
+    return pl.DataFrame(
+        schema={
+            "chrom": pl.Utf8,
+            "start": pl.Utf8,
+            "end": pl.Utf8,
+            "n": pl.Int64,
+            "sum": pl.Float64,
+            "sumsq": pl.Float64,
+            "min_val": pl.Float64,
+            "max_val": pl.Float64,
+        }
+    )
 
-    joined = stats.join(update, on=COORDS, how="full", coalesce=True, suffix="_new")
+
+def empty_bin_stats() -> pl.DataFrame:
+    return pl.DataFrame(
+        schema={
+            "chrom": pl.Utf8,
+            "start": pl.Utf8,
+            "end": pl.Utf8,
+            "n": pl.Int64,
+            "sum_cpgs": pl.Float64,
+            "sum_val": pl.Float64,
+            "sumsq_val": pl.Float64,
+            "min_val": pl.Float64,
+            "max_val": pl.Float64,
+        }
+    )
+
+
+def merge_cpg_stats(stats: pl.DataFrame | None, update: pl.DataFrame) -> pl.DataFrame:
+    joined = stats.join(update, on=COORDS, how="full", coalesce=True, suffix="_new", validate="1:1")
     return joined.select(
         *COORDS,
         (pl.col("n").fill_null(0) + pl.col("n_new").fill_null(0)).alias("n"),
@@ -36,10 +64,7 @@ def merge_cpg_stats(stats: pl.DataFrame | None, update: pl.DataFrame) -> pl.Data
 
 
 def merge_bin_stats(stats: pl.DataFrame | None, update: pl.DataFrame) -> pl.DataFrame:
-    if stats is None:
-        return update
-
-    joined = stats.join(update, on=COORDS, how="full", coalesce=True, suffix="_new")
+    joined = stats.join(update, on=COORDS, how="full", coalesce=True, suffix="_new", validate="1:1")
     return joined.select(
         *COORDS,
         (pl.col("n").fill_null(0) + pl.col("n_new").fill_null(0)).alias("n"),
@@ -67,4 +92,3 @@ def write_reduced_stats(stats: pl.DataFrame, output: str, columns: list[str]) ->
 
 def coord_name(chrom: str, start: str, end: str) -> str:
     return f"{chrom}:{int(start) + 1}-{end}"
-

@@ -8,7 +8,7 @@ import gc
 
 import polars as pl
 
-from summary_common import coord_name, merge_cpg_stats
+from summary_common import coord_name, empty_cpg_stats, merge_cpg_stats
 from table_io import NA, coordinate_sort, log, read_manifest
 
 
@@ -62,7 +62,7 @@ def main() -> None:
 
     log(f"Combining CpG statistics from {len(paths)} batch files")
 
-    stats = None
+    stats = empty_cpg_stats()
     for idx, path in enumerate(paths, start=1):
         log(f"Reading CpG batch stats {idx}/{len(paths)}: {path}")
         batch = read_cpg_reduced(path)

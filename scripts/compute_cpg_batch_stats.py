@@ -8,7 +8,7 @@ import gc
 
 import polars as pl
 
-from summary_common import merge_cpg_stats, write_reduced_stats
+from summary_common import empty_cpg_stats, merge_cpg_stats, write_reduced_stats
 from table_io import log, numeric, read_bed, read_manifest
 
 
@@ -45,7 +45,7 @@ def main() -> None:
 
     log(f"Computing CpG batch statistics from {len(paths)} BED files")
 
-    stats = None
+    stats = empty_cpg_stats()
     for idx, path in enumerate(paths, start=1):
         log(f"Reading BED {idx}/{len(paths)}: {path}")
         contribution = cpg_contribution(path, args.value_col)
